@@ -7,6 +7,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rancher/kine/pkg/drivers/files"
+
+	"github.com/rancher/wrangler/pkg/kv"
+
+	"github.com/rancher/kine/pkg/drivers/memory"
+
 	"github.com/pkg/errors"
 	"github.com/rancher/kine/pkg/drivers/dqlite"
 	"github.com/rancher/kine/pkg/drivers/mysql"
@@ -22,6 +28,8 @@ const (
 	KineSocket      = "unix://kine.sock"
 	SQLiteBackend   = "sqlite"
 	DQLiteBackend   = "dqlite"
+	MemoryBackend   = "memory"
+	FilesBackend    = "files"
 	ETCDBackend     = "etcd3"
 	MySQLBackend    = "mysql"
 	PostgresBackend = "postgres"
@@ -91,7 +99,7 @@ func Listen(ctx context.Context, config Config) (ETCDConfig, error) {
 }
 
 func createListener(listen string) (ret net.Listener, rerr error) {
-	network, address := networkAndAddress(listen)
+	network, address := kv.Split(listen, "://")
 
 	if network == "unix" {
 		if err := os.Remove(address); err != nil && !os.IsNotExist(err) {
@@ -127,6 +135,10 @@ func getKineStorageBackend(ctx context.Context, driver, dsn string, cfg Config) 
 		backend, err = sqlite.New(ctx, dsn)
 	case DQLiteBackend:
 		backend, err = dqlite.New(ctx, dsn)
+	case MemoryBackend:
+		backend = memory.New()
+	case FilesBackend:
+		backend = files.New(dsn)
 	case PostgresBackend:
 		backend, err = pgsql.New(ctx, dsn, cfg.Config)
 	case MySQLBackend:
@@ -139,22 +151,16 @@ func getKineStorageBackend(ctx context.Context, driver, dsn string, cfg Config) 
 }
 
 func ParseStorageEndpoint(storageEndpoint string) (string, string) {
-	network, address := networkAndAddress(storageEndpoint)
-	switch network {
-	case "":
+	if storageEndpoint == "" {
+		// the default
 		return SQLiteBackend, ""
+	}
+	scheme, after := kv.Split(storageEndpoint, "://")
+	switch scheme {
 	case "http":
 		fallthrough
 	case "https":
-		return ETCDBackend, address
+		return ETCDBackend, storageEndpoint
 	}
-	return network, address
-}
-
-func networkAndAddress(str string) (string, string) {
-	parts := strings.SplitN(str, "://", 2)
-	if len(parts) > 1 {
-		return parts[0], parts[1]
-	}
-	return "", parts[0]
+	return scheme, after
 }

@@ -13,7 +13,7 @@ type Log interface {
 	Start(ctx context.Context) error
 	CurrentRevision(ctx context.Context) (int64, error)
 	List(ctx context.Context, prefix, startKey string, limit, revision int64, includeDeletes bool) (int64, []*server.Event, error)
-	After(ctx context.Context, prefix string, revision, limit int64) (int64, []*server.Event, error)
+	After(ctx context.Context, prefix string, revision int64) (int64, []*server.Event, error)
 	Watch(ctx context.Context, prefix string) <-chan []*server.Event
 	Count(ctx context.Context, prefix string) (int64, int64, error)
 	Append(ctx context.Context, event *server.Event) (int64, error)
@@ -324,7 +324,7 @@ func (l *LogStructured) Watch(ctx context.Context, prefix string, revision int64
 
 	result := make(chan []*server.Event, 100)
 
-	rev, kvs, err := l.log.After(ctx, prefix, revision, 0)
+	rev, kvs, err := l.log.After(ctx, prefix, revision)
 	if err != nil {
 		logrus.Errorf("failed to list %s for revision %d", prefix, revision)
 		cancel()

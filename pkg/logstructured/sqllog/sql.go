@@ -198,12 +198,12 @@ func (s *SQLLog) CurrentRevision(ctx context.Context) (int64, error) {
 	return s.d.CurrentRevision(ctx)
 }
 
-func (s *SQLLog) After(ctx context.Context, prefix string, revision, limit int64) (int64, []*server.Event, error) {
+func (s *SQLLog) After(ctx context.Context, prefix string, revision int64) (int64, []*server.Event, error) {
 	if strings.HasSuffix(prefix, "/") {
 		prefix += "%"
 	}
 
-	rows, err := s.d.After(ctx, prefix, revision, limit)
+	rows, err := s.d.After(ctx, prefix, revision, 0)
 	if err != nil {
 		return 0, nil, err
 	}
